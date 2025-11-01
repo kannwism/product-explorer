@@ -219,12 +219,45 @@ async def explore_product_cli(product_url: str, generate_demos: bool = True, exe
                             print(f"MDX files: {len(mdx_files)} courses")
                             for mdx_file in mdx_files:
                                 print(f"  - {Path(mdx_file).name}")
-                            
-                            print("\n💡 Additional Next Steps:")
-                            print(f"  6. Review execution report: cat '{execution_report}'")
-                            print(f"  7. Watch course recordings to see demos in action")
-                            print(f"  8. View MDX course content (ready for docs site)")
-                            
+
+                            # Deploy to Supabase
+                            print("\n" + "="*80)
+                            print("🚀 Deploying to Supabase...")
+                            print("="*80 + "\n")
+
+                            try:
+                                from supabase_deployer import deploy_from_exploration
+
+                                deployment_result = deploy_from_exploration(
+                                    mdx_files=mdx_files,
+                                    product_url=product_url,
+                                    output_dir=str(output_dir)
+                                )
+
+                                print("="*80)
+                                print("✅ DEPLOYMENT COMPLETE!")
+                                print("="*80)
+                                print(f"Site: {deployment_result['site_name']}")
+                                print(f"Files deployed: {len(deployment_result['uploaded_files'])}")
+                                if 'info_file' in deployment_result:
+                                    print(f"Deployment info: {deployment_result['info_file']}")
+                                print("="*80)
+
+                                print("\n💡 Additional Next Steps:")
+                                print(f"  6. Review execution report: cat '{execution_report}'")
+                                print(f"  7. Watch course recordings to see demos in action")
+                                print(f"  8. View MDX course content (ready for docs site)")
+                                print(f"  9. Check deployment info for Supabase URLs")
+
+                            except Exception as e:
+                                print(f"\n⚠️  Supabase deployment failed: {e}")
+                                import traceback
+                                traceback.print_exc()
+                                print("\n💡 Additional Next Steps:")
+                                print(f"  6. Review execution report: cat '{execution_report}'")
+                                print(f"  7. Watch course recordings to see demos in action")
+                                print(f"  8. View MDX course content (ready for docs site)")
+
                         except Exception as e:
                             print(f"\n⚠️  MDX generation failed: {e}")
                             import traceback
