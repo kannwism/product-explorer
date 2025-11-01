@@ -40,7 +40,7 @@ class ExploreRequest(BaseModel):
     """Request to explore a product"""
     url: HttpUrl
     generate_demos: bool = True
-    execute_courses: bool = False
+    execute_courses: bool = True  # Changed to True for end-to-end deployment
 
 
 class ExploreResponse(BaseModel):
