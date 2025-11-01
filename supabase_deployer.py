@@ -93,10 +93,15 @@ class SupabaseDeployer:
                 data=file_content
             )
 
+        if response.status_code not in [200, 201]:
+            print(f"   ⚠️  Upload failed with status {response.status_code}")
+            print(f"   Response: {response.text}")
+
         response.raise_for_status()
 
         # Construct public URL
-        public_url = f"{self.storage_url}/public/{remote_path}"
+        # Format: https://xxx.supabase.co/storage/v1/object/public/{bucket}/{path}
+        public_url = f"{self.supabase_url}/storage/v1/object/public/{self.storage_bucket}/{remote_path}"
 
         print(f"   ✅ Uploaded to: {public_url}")
 
@@ -213,6 +218,10 @@ class SupabaseDeployer:
             headers=headers,
             json=payload
         )
+
+        if response.status_code != 200:
+            print(f"\n   ⚠️  Edge function failed with status {response.status_code}")
+            print(f"   Response: {response.text}")
 
         response.raise_for_status()
         result = response.json()
