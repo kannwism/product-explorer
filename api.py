@@ -8,7 +8,9 @@ import os
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel, HttpUrl
 from pathlib import Path
+from typing import List
 from explore import explore_product_cli
+from supabase_deployer import deploy_from_exploration
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -32,6 +34,20 @@ class ExploreResponse(BaseModel):
     """Response when exploration starts"""
     status: str
     url: str
+    message: str
+
+
+class DeployRequest(BaseModel):
+    """Request to deploy MDX files"""
+    mdx_file_paths: List[str]
+    product_url: HttpUrl
+
+
+class DeployResponse(BaseModel):
+    """Response when deployment completes"""
+    status: str
+    site_name: str
+    files_deployed: int
     message: str
 
 
@@ -150,6 +166,78 @@ async def list_outputs():
         "count": len(files),
         "directory": str(outputs_dir)
     }
+
+
+@app.post("/deploy", response_model=DeployResponse)
+async def deploy(request: DeployRequest):
+    """
+    Deploy MDX files to Supabase and trigger docs site deployment
+
+    This endpoint:
+    1. Uploads MDX files to Supabase storage
+    2. Triggers the edge function to create MkDocs site
+    3. Deploys to Vercel via GitHub
+
+    Files can be:
+    - Relative paths from outputs directory (e.g., "course_1.mdx")
+    - Absolute paths (e.g., "/Users/mari/git/product-explorer/outputs/course_1.mdx")
+    """
+
+    # Validate Supabase API keys
+    if not os.getenv('SUPABASE_URL'):
+        raise HTTPException(status_code=500, detail="SUPABASE_URL not configured")
+    if not os.getenv('SUPABASE_ANON_KEY'):
+        raise HTTPException(status_code=500, detail="SUPABASE_ANON_KEY not configured")
+    if not os.getenv('GITHUB_TOKEN'):
+        raise HTTPException(status_code=500, detail="GITHUB_TOKEN not configured")
+
+    # Resolve file paths
+    outputs_dir = Path(__file__).parent / "outputs"
+    resolved_paths = []
+
+    for file_path in request.mdx_file_paths:
+        path = Path(file_path)
+
+        # If relative path, resolve from outputs directory
+        if not path.is_absolute():
+            path = outputs_dir / file_path
+
+        # Check file exists
+        if not path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"File not found: {file_path}"
+            )
+
+        # Check it's an MDX file
+        if path.suffix.lower() != '.mdx':
+            raise HTTPException(
+                status_code=400,
+                detail=f"File is not an MDX file: {file_path}"
+            )
+
+        resolved_paths.append(str(path))
+
+    # Deploy the files
+    try:
+        result = deploy_from_exploration(
+            mdx_files=resolved_paths,
+            product_url=str(request.product_url),
+            output_dir=str(outputs_dir)
+        )
+
+        return DeployResponse(
+            status="success",
+            site_name=result['site_name'],
+            files_deployed=len(result['uploaded_files']),
+            message=f"Successfully deployed {len(result['uploaded_files'])} files to {result['site_name']}"
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Deployment failed: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
