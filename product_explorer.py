@@ -653,7 +653,7 @@ Check if you're already logged in. If not, proceed with login using the credenti
             'task_id': self.task_id,
             'share_url': share_url,
             'status': result.get('status'),
-            'success': result.get('status') == 'finished',
+            'success': result.get('status') in ['finished', 'stopped'],  # Accept both finished and stopped
             'raw_analysis': task_output
         }
         
